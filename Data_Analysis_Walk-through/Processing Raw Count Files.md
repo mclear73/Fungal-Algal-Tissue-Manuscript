@@ -9,11 +9,11 @@
 ### Necessary files to complete this pipeline ###
 - Folder of [Raw Count Files](https://drive.google.com/open?id=14UjfTOpew4GyDhC8_15EC7uItBaXK0zE&authuser=mclear73%40gmail.com&usp=drive_fs)
 - Folder of [meta data files](https://drive.google.com/open?id=14njtM7mdV0QRtAG1YmBA5rE8SH2JUHMm&authuser=mclear73%40gmail.com&usp=drive_fs)
--  Folder of [DESEQ2 output files]() 
+-  Folder of [DESEQ2 output files](https://drive.google.com/open?id=15oyUxhdc9fAxqCt1Da9mGA1_xu5Bf3gy&authuser=mclear73%40gmail.com&usp=drive_fs) 
 - MongoDB ortholog database "[aggregated_orthoDB.json]()" 
 
 ### Make sure prerequisite software and conda environments are installed ##
-- Conda environments can be found in the [Conda_Environments directory](https://github.com/mclear73/RNAseq_Miniworkshop/tree/main/Conda_Environments) of this github repository
+- Conda environments can be found in the [Conda_Environments directory](https://github.com/mclear73/Fungal-Algal-Tissue-Manuscript/tree/main/Conda_Environments) of this github repository
 - Download the appropriate conda environment depending on your operating system
 - **For Mac/Linux users**, open **terminal** and navigate to the directory where you stored the conda environment you downloaded. (You should use the `cd` command to do this)
 	- Next, run the following command to create your environment:
@@ -36,35 +36,6 @@
 	
           conda activate py_39
 
-### Installing MongoDB ###
-- MongoDB is easy to install regardless of operating system
-- To install MongoDB, follow the [instructions found on their website](https://www.mongodb.com/docs/manual/installation/)
-- If you install MongoDB on Mac or Windows, there is a helpful UI application that will be installed called MongoDB Compass. I recommend using the application for database visualization and trouble shooting.
-- If you can't find MongoDB Compass after installing MongoDB, you can make sure Compass is installed by following the[ instructions for your particular operating system found here](https://www.mongodb.com/docs/compass/current/install/). 
-- For **Mac/Linux users** make sure you install mongodb-database-tools [using this tutorial](https://www.mongodb.com/docs/database-tools/installation/installation-macos/)
-
-##Download and import MongoDB database ## 
-- Download the MongoDB ortholog database file
-
-
-- For **Mac/Linux users**
-	- In terminal, navigate (using` cd`) to the directory where you downloaded the MongoDB database .json file titled "aggregated_Apr13.json"
-	- Once in that directory, run the following command:
-         mongoimport --db Rhizobia_db --collection aggregated_Apr13 --file aggregated_Apr13.json --jsonArray
-	- Open the MongoDB compass program
-	- Press the **Connect** button to connect to the localhost
-	- Check to see if there is a Rhizobia_DB now present
-
-
-- For **Windows users**
-	- Open MongoDB Compass
-	- Create a new database called "Rhizobia_db"
-	- Within the Rhizobia_db database, create a collection called "aggregated_Apr13"
-	- Press the **ADD DATA** button
-	- Select **Import file**
-	- Select the "aggregated_Apr13.json" file
-	- Select the **JSON** file type option
-	- Press **IMPORT**
 
 ## Use Raw Counts to Create PCAs From Normalized Counts ##
 - Open R/RStudio and make sure that DESeq2 and pheatmap libraries are installed
@@ -394,3 +365,33 @@
                            sort_list=None,
                            dot_min_size=30,
                            dot_max_size=300)
+
+### Installing MongoDB ###
+- MongoDB is easy to install regardless of operating system
+- To install MongoDB, follow the [instructions found on their website](https://www.mongodb.com/docs/manual/installation/)
+- If you install MongoDB on Mac or Windows, there is a helpful UI application that will be installed called MongoDB Compass. I recommend using the application for database visualization and trouble shooting.
+- If you can't find MongoDB Compass after installing MongoDB, you can make sure Compass is installed by following the[ instructions for your particular operating system found here](https://www.mongodb.com/docs/compass/current/install/). 
+- For **Mac/Linux users** make sure you install mongodb-database-tools [using this tutorial](https://www.mongodb.com/docs/database-tools/installation/installation-macos/)
+
+##Download and import MongoDB database ## 
+- Download the MongoDB ortholog database file
+
+
+- For **Mac/Linux users**
+	- In terminal, navigate (using` cd`) to the directory where you downloaded the MongoDB database .json file titled "aggregated_orthoDB.json"
+	- Once in that directory, run the following command:
+         mongoimport --db Rhizobia_db --collection aggregated_Apr13 --file aggregated_Apr13.json --jsonArray
+	- Open the MongoDB compass program
+	- Press the **Connect** button to connect to the localhost
+	- Check to see if there is a Ortholog_DB now present
+
+
+- For **Windows users**
+	- Open MongoDB Compass
+	- Create a new database called "Ortholog_DB"
+	- Within the Ortholog_DB database, create a collection called "aggregated_orthoDB"
+	- Press the **ADD DATA** button
+	- Select **Import file**
+	- Select the "aggregated_orthoDB.json" file
+	- Select the **JSON** file type option
+	- Press **IMPORT**

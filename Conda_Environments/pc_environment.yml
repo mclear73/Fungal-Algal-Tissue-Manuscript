@@ -1,4 +1,4 @@
-name: jupyter
+name: py_39
 channels:
   - anaconda
   - conda-forge
