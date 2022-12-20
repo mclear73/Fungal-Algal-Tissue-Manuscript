@@ -158,7 +158,7 @@
 ### Creating a STAR indexed reference genome (*A. nidulans* with *C. reinhardtii* example) ###
 - Create a new pbs file for generating the M. truncatula indexed genome for STAR mapping
 
-      nano medicago_STAR_index.pbs
+      nano AspChlamComb_STAR_index.pbs
 
 - Copy and paste the following into the empty text file, make sure you change the email!		
 
@@ -168,14 +168,14 @@
       #PBS -l ncpus=8
       #PBS -l mem=58gb
       #PBS -m ae
-      #PBS -M mclear@bnl.gov
+      #PBS -M mclear73@gmail.com
 
       cd $PBS_O_WORKDIR
 
       STAR --runMode genomeGenerate \
-      --genomeDir ~/Medicago/M_truncV5 \
-      --genomeFastaFiles ~/Genomes/Mtrunc_v5/mtruna17r5.0-20161119-anr.genome.fasta \
-      --sjdbGTFfile ~/Genomes/Mtrunc_v5/MtrunA17r5.0-ANR-EGN-r1.8.gff3 \
+      --genomeDir ~/Genomes_Indexed/Asp_Chlam_Comb \
+      --genomeFastaFiles ~/Genomes/Aspergillus/Asp_Chlam.fasta \
+      --sjdbGTFfile ~/Genomes/Mtrunc_v5/Asp_Chlam.gff3 \
       --sjdbGTFtagExonParentGene ID \
       --sjdbOverhang 100 \
       --genomeSAindexNbases 13 \
@@ -184,45 +184,12 @@
 - Close and save the file
 - To generate the index file run
 
-      qsub medicago_STAR_index.pbs
+      qsub AspChlamComb_STAR_index.pbs
 
-### Creating a STAR indexed reference genome (Rhizobia example) ###
-- Create a new pbs file for generating the M. truncatula indexed genome for STAR mapping
-
-      nano rhizobia_STAR_index.pbs
-
-- Copy and paste the following into the empty text file, make sure you change the email!
-
-      #STAR rhizobiaIndex.pbs
-      #!/bin/bash
-      #PBS -N SMp0_Index
-      #PBS -l ncpus=8
-      #PBS -l mem=58gb
-      #PBS -m ae
-      #PBS -M mclear@bnl.gov
-
-      cd $PBS_O_WORKDIR
-
-      STAR --runMode genomeGenerate \
-      --genomeDir ~/Genomes_Indexed/SMp01_Indexed \
-      --genomeFastaFiles ~/Genomes/SMp01/SMp01_genome_trd.fasta \
-      --sjdbGTFfile ~/Genomes/SMp01/SMp01_491863.gff \
-      --sjdbOverhang 100 \
-      --genomeSAindexNbases 10 \
-      --sjdbGTFfeatureExon CDS \
-      --sjdbGTFtagExonParentGene ID \
-      --runThreadN 8
-
-- Close and save the file
-- To generate the index file run
-
-      qsub rhizobia_STAR_index.pbs
-
-### Concatenating genomes (optional) ###
 ### Mapping reads to indexed reference genome ###
-- Create a new pbs file for mapping the Medicago reads to the indexed genome file
+- Create a new pbs file for mapping the Aspergillus reads to the indexed genome file
 
-      nano STAR_map_medicago.pbs
+      nano STAR_map_AspChlam.pbs
 
 - Copy and paste the following into the empty text file, make sure you change the email!
 
@@ -232,7 +199,7 @@
       #PBS -l ncpus=8
       #PBS -l mem=32gb
       #PBS -m ae
-      #PBS -M mclear@bnl.gov
+      #PBS -M mclear73@gmail.com
 
       cd $PBS_O_WORKDIR
 
@@ -241,26 +208,24 @@
       STAR --runMode alignReads \
       --readFilesCommand zcat \
       --outSAMtype BAM Unsorted \
-      --genomeDir ~/Genomes_Indexed/STf07_Indexed \
+      --genomeDir ~/Genomes_Indexed/Asp_Chlam_Comb \
       --readFilesIn ${i}R1_paired.fq.gz  ${i}R2_paired.fq.gz \
       --outReadsUnmapped Fastx \
       --runThreadN 8 \
       --quantMode GeneCounts \
-      -–sjdbGTFfile ~/Genomes/STf07/Stf07_491978.gff \
+      -–sjdbGTFfile ~/Genomes/Aspergillus/Asp_Chlam.gff3 \
       --sjdbGTFfeatureExon CDS \
       --sjdbGTFtagExonParentGene ID \
-      --outFileNamePrefix ${i}STf07 \
+      --outFileNamePrefix ${i}AspChlam \
       --alignIntronMax 3000
       done
 
 - Close and save the file
 - To run the STAR mapping script
 
-      qsub STAR_map_medicago.pbs
+      qsub STAR_map_AspChlam.pbs
 
-## (NO LONGER NEEDED) Creating count files from STAR output (*.bam) files ##
-- **Note: this is here for reference only, but no longer needs to be run as STAR will take care of bam sorting and counting with HTSeq**
-- **Continue on to the "Aggregating a count summary file with bash" section**
+## Creating count files from STAR output (*.bam) files ##
 ### Sorting *.bam files with samtools ###
 - Open a new text file for a samsort .pbs script
 
@@ -274,7 +239,7 @@
       #PBS -l ncpus=4
       #PBS -l mem=8gb
       #PBS -m ae
-      #PBS -M mclear@bnl.gov
+      #PBS -M mclear73@gmail.com
 
       cd $PBS_O_WORKDIR
 
@@ -302,7 +267,7 @@
       #PBS -l ncpus=4
       #PBS -l mem=8gb
       #PBS -m ae
-      #PBS -M mclear@bnl.gov
+      #PBS -M mclear73@gmail.com
 
       cd $PBS_O_WORKDIR
 
@@ -310,7 +275,7 @@
 
       for i in $(ls *.sorted.bam | sed 's/.sorted.bam//')
       do
-      htseq-count -s no -t CDS -f bam -i ID ${i}.sorted.bam /home/centos/Genomes/VTc07/Vtc07.436.gff > ${i}.counts
+      htseq-count -s no -t CDS -f bam -i ID ${i}.sorted.bam /home/centos/Genomes/Aspergillus/Asp_Chlam.gff3  > ${i}.counts
       done
 
 - Close and save the file
@@ -389,18 +354,6 @@
 
 - This will create a files called '**CompiledCounts.csv**' & '**MetaData.csv**' that can be downloaded to your local machine
 
-## Exporting the count and summary files ##
-- Download the aggregated count file
-
-      scp -i "AWS_key.pem" centos@ec2-34-227-60-128.compute-1.amazonaws.com:/home/centos/CompiledCounts.csv ~/Downloads
-
-- This will place the file into your Downloads directory
-- Download the summary file
-
-      scp -i "AWS_key.pem" centos@ec2-34-227-60-128.compute-1.amazonaws.com:/home/centos/compiled_STAR_stats.txt ~/Downloads
-
-- This will place the file into your Downloads directory
-
 ## What to do with the remaining data ##
 ### Checking for contamination with phyloFlash ###
 - To run phyloFlash create a pbs script
@@ -415,7 +368,7 @@
       #PBS -l ncpus=8
       #PBS -l mem=32gb
       #PBS -m ae
-      #PBS -M mclear@bnl.gov
+      #PBS -M mclear73@gmail.com
 
       source activate py3.7
 
