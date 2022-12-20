@@ -45,14 +45,11 @@
       library(DESeq2)
       library(pheatmap)
 
-      #Processing Count Data RNAseq Miniworkshop
-      #setwd("~/full_data/deseq2")
-
-      #Load the count matrix data download from the instance
-      counts <- read.delim('HM302_AMp07_rhiz_raw.csv', sep=',', header=T, row.names=1)
+      #Load the count matrix data
+      counts <- read.delim('Asp_Counts_noFilt.csv', sep=',', header=T, row.names=1)
 
       #Load metadata file
-      metaData <- read.delim('All_Metadata.csv',sep=',', header=T)
+      metaData <- read.delim('Fungus_Metadata.csv',sep=',', header=T)
 
       samples <- colnames(counts)
 
@@ -101,11 +98,58 @@
       ################################################################
       #Visualize the counts with PCA ordination 
       ################################################################
+      tbl.tab1 <- vst_norm
 
-      png("PCA_star.png")
-      plotPCA(object = vst_norm,
-              intgroup = "Treatment")
-      dev.off()
+      m <- tbl.tab1 %>% dplyr::select((res$ngene + 1):ncol(tbl.tab1)) %>% as.matrix 
+    
+      df <- tbl.tab1 
+      df <- data.frame(tbl.tab1)
+
+      #To grab the top 1000 most variable genes
+      ntop <- 1000
+      rv <- rowVars(m)
+      select <- order(rv, decreasing = TRUE)[seq_len(min(ntop, length(rv)))]
+      pca <- prcomp(t(m[select,]))
+      df <- df[select,]
+      rownames(df) <- df$Symbol
+      genes_for_PCA <<- df$Symbol
+      df <- df[ , -which(names(df) %in% c("Symbol"))]
+      percentVar <- pca$sdev^2 / sum( pca$sdev^2 )
+      d <<- data.frame(PC1 = pca$x[,1], 
+                      PC2 = pca$x[,2], 
+                      PC3 = pca$x[,3], 
+                      name = colnames(m),
+                      color = rep("blue",length(colnames(m))))
+      ind.p <- fviz_pca_ind(pca,
+                            geom.ind="point",
+                            pointshape=20,
+                            pointsize=1.5,# show points only (nbut not "text")
+                            col.ind = metadata[match(colnames(m),metadata[,1,drop = T]),2,drop = T], # color by groups
+                            legend.title = "Groups",
+                            palette="mycolors",
+                            mean.point=FALSE,
+                            xlab = paste("PC1: ", round(percentVar[1] * 100, digits = 2), "% variance", sep=""),
+                            ylab = paste("PC2: ", round(percentVar[2] * 100, digits = 2),"% variance", sep=""))
+
+      write.csv(d, 'PCA_output.csv)
+
+## Visualizing PCA with Python ##
+      import pandas as pd 
+      import matplotlib.pyplot as plt
+      import seaborn as sns
+
+      sorg_df = pd.read_csv('all_pca_nofilt.csv')
+
+      sns.relplot(
+          data=sorg_df, x="PC1", y="PC2",
+          col="Fungus", hue="Strain", row='Organism',
+          kind="scatter",
+          style='Genotype',
+          markers=['o', '^'],
+          s=100
+      )
+
+      plt.savefig('All_PCAs_nofilt.pdf')
 
 ## Perform DESeq2 Analysis ##
 - Add the following to the bottom of the R script found above
