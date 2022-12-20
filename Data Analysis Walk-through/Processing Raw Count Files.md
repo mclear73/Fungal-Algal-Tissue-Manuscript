@@ -1,0 +1,393 @@
+# Rhizobia Monoculture and Nodule Data Processing #
+
+## Starting Data ##
+### Necessary files to complete this pipeline ###
+- Zip folder of [count files separated by project](https://www.dropbox.com/s/dvdwp2z40ql6cce/Rhizobia_Count_Files.zip?dl=0) in QPSI/Michael/Dual_Nodule_RNAseq/Rhizobia_Count_Files.zip
+- Zip folder of [meta data files](https://www.dropbox.com/s/u1li0yhuswhncof/Rhizobia_Metadata_Files.zip?dl=0)  in QPSI/Michael/Dual_Nodule_RNAseq/Rhizobia_Metadata_Files.zip
+-  Zip folder of [DESEQ2 output files](https://www.dropbox.com/s/nsv0hn21qdklztw/Rhizobia_DESeq2_Files.zip?dl=0) in QPSI/Michael/Dual_Nodule_RNAseq/Rhizobia_DESeq1_Files.zip
+- MongoDB ortholog database "[aggregated_Apr13.json](https://www.dropbox.com/s/himgbcimpwi10sa/aggregated_Apr13.json?dl=0)" in QPSI/Michael/Dual_Nodule_RNAseq
+-  [Orthogroup file](https://www.dropbox.com/s/iydj3akt9q71efo/Orthogroups.tsv?dl=0) in QPSI/Michael/Orthogroups.tsv
+- Zip folder of [AMp08_pgap GO-term enrichment files ](https://www.dropbox.com/s/8dw32lltrcsb6j2/AMp08_PGAP_GO_Terms.zip?dl=0)(*.gmt)  in QPSI/Michael/Dual_Nodule_RNAseq/AMp08_PGAP_GO_Terms.zip
+
+### Make sure prerequisite software and conda environments are installed ##
+- Conda environments can be found in the [Conda_Environments directory](https://github.com/mclear73/RNAseq_Miniworkshop/tree/main/Conda_Environments) of this github repository
+- Download the appropriate conda environment depending on your operating system
+- **For Mac/Linux users**, open **terminal** and navigate to the directory where you stored the conda environment you downloaded. (You should use the `cd` command to do this)
+	- Next, run the following command to create your environment:
+
+          conda env create -f mac_environment.yml
+
+	- Ensure that you change "environment.yml" name to the actual name of the .yml file that you downloaded
+	- Activate your environment by running:
+	
+          conda activate py_39
+
+- **For Windows users**, open the **Anaconda prompt**
+	- Next, navigate to the directory where you stored the conda environment you downloaded. (You should use the `cd` command to do this)
+	- Now run the following command to create your environment
+	
+          conda env create -f environment.yml
+
+	- Ensure that you change "environment.yml" name to the actual name of the .yml file that you downloaded
+	- Activate your environment by running:
+	
+          conda activate py_39
+
+### Installing MongoDB ###
+- MongoDB is easy to install regardless of operating system
+- To install MongoDB, follow the [instructions found on their website](https://www.mongodb.com/docs/manual/installation/)
+- If you install MongoDB on Mac or Windows, there is a helpful UI application that will be installed called MongoDB Compass. I recommend using the application for database visualization and trouble shooting.
+- If you can't find MongoDB Compass after installing MongoDB, you can make sure Compass is installed by following the[ instructions for your particular operating system found here](https://www.mongodb.com/docs/compass/current/install/). 
+- For **Mac/Linux users** make sure you install mongodb-database-tools [using this tutorial](https://www.mongodb.com/docs/database-tools/installation/installation-macos/)
+
+##Download and import MongoDB database ## 
+- Download the MongoDB ortholog database file
+
+
+- For **Mac/Linux users**
+	- In terminal, navigate (using` cd`) to the directory where you downloaded the MongoDB database .json file titled "aggregated_Apr13.json"
+	- Once in that directory, run the following command:
+         mongoimport --db Rhizobia_db --collection aggregated_Apr13 --file aggregated_Apr13.json --jsonArray
+	- Open the MongoDB compass program
+	- Press the **Connect** button to connect to the localhost
+	- Check to see if there is a Rhizobia_DB now present
+
+
+- For **Windows users**
+	- Open MongoDB Compass
+	- Create a new database called "Rhizobia_db"
+	- Within the Rhizobia_db database, create a collection called "aggregated_Apr13"
+	- Press the **ADD DATA** button
+	- Select **Import file**
+	- Select the "aggregated_Apr13.json" file
+	- Select the **JSON** file type option
+	- Press **IMPORT**
+
+## Use Raw Counts to Create PCAs From Normalized Counts ##
+- Open R/RStudio and make sure that DESeq2 and pheatmap libraries are installed
+- Change your working directory to the location of your compiled reads and metadata files are located
+- Run the following script in R
+
+      library(DESeq2)
+      library(pheatmap)
+
+      #Processing Count Data RNAseq Miniworkshop
+      #setwd("~/full_data/deseq2")
+
+      #Load the count matrix data download from the instance
+      counts <- read.delim('HM302_AMp07_rhiz_raw.csv', sep=',', header=T, row.names=1)
+
+      #Load metadata file
+      metaData <- read.delim('All_Metadata.csv',sep=',', header=T)
+
+      samples <- colnames(counts)
+
+      metaData <- metaData[metaData$Sample %in% samples,]
+
+      # add the sample names as row names (it is needed for some of the DESeq functions)
+      rownames(metaData) <- metaData$Samples
+
+      #Create a DESeq2 object from the matrix file
+      dds <- DESeqDataSetFromMatrix(countData = counts,
+                                               colData = metaData,
+                                               design = ~ Treatment)
+
+      # Number of genes before filtering:
+      nrow(dds)
+
+      # Filter
+      dds <- dds[rowSums(counts(dds)) > 10, ]
+
+      # Number of genes left after low-count filtering:
+      nrow(dds)
+
+      #Fit model to the data
+      dds_model <- DESeq(dds)
+
+      #Calculates log2 normalized counts
+      norm_counts_log2 <- log2(counts(dds_model, normalized = TRUE)+1)
+      write.table(norm_counts_log2, "normalized_counts_log2.txt", quote=F, col.names=T, row.names=T, sep="\t")
+
+      ################################################################
+      #Visualize the counts with between-sample distance matrix heatmap
+      ################################################################
+
+      # Try with the vst transformation
+      vst_norm <- vst(dds_model)
+
+      # calculate between-sample distance matrix
+      sampleDistMatrix <- as.matrix(dist(t(assay(vst_norm))))
+
+      # create figure in PNG format
+      png("sample_distance_heatmap_star.png")
+      pheatmap(sampleDistMatrix)
+      # close PNG file after writing figure in it
+      dev.off() 
+
+      ################################################################
+      #Visualize the counts with PCA ordination 
+      ################################################################
+
+      png("PCA_star.png")
+      plotPCA(object = vst_norm,
+              intgroup = "Treatment")
+      dev.off()
+
+## Perform DESeq2 Analysis ##
+- Add the following to the bottom of the R script found above
+- This script will perform differential expression analysis on the comparison you specify based on the dds_model created in previous steps
+
+      ################################################################
+      #Calculate Differential expression statistics between treatments
+      ################################################################
+
+      # check results names: depends on what was modeled. Here it was the "Time"
+      resultsNames(dds_model)
+
+      # extract results for t25 vs t0
+      # contrast: the column from the metadata that is used for the grouping of the samples (Time), then the baseline (t0) and the group compared to the baseline (t25) -> results will be as "t25 vs t0"
+      #NOTE: you will nee d to repeat this code for every pairwise comparison that you are interested in running
+      de <- results(object = dds_model, 
+                    contrast=c("Treatment", "Hg", "Control")
+
+      write.table(de, "HM302_AMp07_rhiz_Hg_vs_Control_DE.csv", quote=F, col.names=T, row.names=T, sep=",")
+
+      ################################################################
+      #Calculate Differential expression statistics with shrinkage of
+      #LFC estimates toward 0
+      ################################################################
+
+      # processing the same results as above but including the log2FoldChange shrinkage
+      # useful for visualization and gene ranking
+      de_shrink <- lfcShrink(dds = dds_model,
+                             coef="Treatment_Hg_vs_Control",
+                             type="apeglm")
+
+      write.table(de_shrink, "HM302_AMp07_rhiz_Hg_vs_Control_DE_apeGLM.csv", quote=F, col.names=T, row.names=T, sep="\t")
+
+- Note that the above R script uses 2 methods to generate differential expression statistics. **You only need to use one of these methods**
+- Method 1 is the traditional DESeq method and is the one employed by JGI when they process transcriptomic data
+- Method 2 is a newer method that shrinks LFC based on variability between replicates
+- Typically, you will only use Method 1, but Method 2 here is kept for your reference
+
+## Generate TMM Normalized Counts ##
+- For comparing/plotting average counts, you will want to use a normalization procedure that normalizes for sample depth.  A typical method for doing this is using the weighted mean of M-values (TMM)
+- To generate TMM values, use the same raw count and metadata files that were used for PCAs and DESeq2
+- Open R/Rstudio and copy and paste the following function into a new R file:
+
+      rawCounts_toTMM <- function(counts, metadata, sample_column, treatment_Column) {
+        library(edgeR)
+        library(stringr)
+        #Import count data. Assumes the first column contains the gene identifier
+        if (grepl('.csv', counts, fixed=TRUE) == TRUE) {
+          countData <- read.csv(counts, row.names=1)
+        } else if (grepl('.tsv', counts, fixed=TRUE) == TRUE) {
+          countData <- read.csv(counts, row.names=1, sep='\t')
+        } else if (grepl('.txt.', counts, fixed=TRUE) == TRUE) {
+          print('.txt file provided as counts input. Assumming it is tab delimited.')
+          countData <- read.csv(counts, row.names=1, sep='\t')
+        }
+  
+        #Import metadata. Assumes the first column contains the sample identifier
+        if (grepl('.csv', metadata, fixed=TRUE) == TRUE) {
+          metaData <- read.csv(metadata)
+        } else if (grepl('.tsv', metadata, fixed=TRUE) == TRUE) {
+          metaData <- read.csv(metadata, sep='\t')
+        } else if (grepl('.txt.', metadata, fixed=TRUE) == TRUE) {
+          print('.txt file provided as metadat input. Assumming it is tab delimited.')
+          metaData <- read.csv(metadata, sep='\t')
+        }
+  
+        #metaData$Name <- paste('X', metaData$Name, sep='') #an X may be added to sample names by default if they start with a number. Uncomment this line if you need an X added to metaData sample names to match count file. 
+  
+        for_groups <- data.frame(colnames(countData))
+  
+        #  metaData$Name <- str_replace(metaData$Name, '-', '.')
+  
+        for_groups <- merge(for_groups, metaData, by.x='colnames.countData.', by.y=sample_column, all.x=TRUE)
+  
+        col <- grep(treatment_Column, colnames(for_groups))
+  
+        for_groups <- for_groups[match(colnames(countData), for_groups$colnames.countData.),]
+  
+        groups <- factor(for_groups[[col]])
+  
+        #Removes categorical data from count dataframe
+        #  noCat <- sapply(countData, is.numeric) #comment this line out if removing categorical variables is messing up your dataframe
+        #  countData <- countData[noCat] #comment this line out if removing categorical variables is messing up your dataframe
+  
+        y <- DGEList(counts=countData, group=groups)
+  
+        #Filters out genes with low counts. This is typically done before TMM normalization
+        keep <- filterByExpr(y) #comment out this line if you do not want to remove genes with low counts
+        y <- y[keep,,keep.lib.sizes=FALSE] #comment out this line if you do not want to remove genes with low counts
+        dgeList <- calcNormFactors(y, method="TMM")
+        tmm <- cpm(dgeList)
+  
+        newName <- sub(".csv", '_TMM.csv',counts)
+  
+        write.csv(as.data.frame(tmm), 
+                  file=newName)
+      }
+
+- The above script is a function and needs to be run once prior to calling the function
+- To call the function and actually generate the normalized counts, use this script as a template
+- This script can be copied and pasted beneath the above rawCounts_toTMM() function
+
+      #Example usage  
+      rawCounts_toTMM(counts='HM302_AMp07_rhiz_raw.csv', 
+                      metadata='All_Metadata.csv',
+                      sample_column='Sample',
+                      treatment_Column="Treatment")
+
+## Compile DESeq and TMM Counts ##
+### Average TMM Counts by treatment ###
+- Make sure that you have activated your conda environment using terminal (Mac/Linux) or Anaconda prompt (Windows)
+- If conda environment is not activated, run:
+
+      conda activate py_39
+
+- Open spyder by running the `spyder` command
+
+- Open a blank python document
+- Navigate to the working directory where your TMM files and metaData files are located
+- Copy and paste the following code and run the script:
+
+      import pandas as pd
+
+      amp07 = pd.read_csv('AMp07_Rhizo_Raw_Counts_TMM.csv', index_col=0)
+
+      metaData = pd.read_csv('All_meta_rhizo.csv')
+
+      def average_counts(df, sampleCol, treatmentCol):
+          df = df.T
+          df = df.reset_index()
+          df = df.merge(metaData[[sampleCol, treatmentCol]], how='left', 
+                        left_on='index', right_on=sampleCol)
+          df = df.drop(columns=[sampleCol])
+          df = df.groupby(treatmentCol).mean()
+          df = df.T
+          return df
+
+      amp07 = average_counts(amp07, sampleCol='Sample', treatmentCol='Treatment')
+
+      amp07.to_csv('AMp07_Rhizo_Avg_TMM_Counts.csv')
+
+      #Processing Nodule Samples
+      metaData = pd.read_csv('All_Metadata.csv')
+
+      HM302_AMp07_med = pd.read_csv('HM302_AMp07_med_raw_TMM.csv', index_col=0)
+      HM302_AMp07_rhiz = pd.read_csv('HM302_AMp07_rhiz_raw_TMM.csv')
+
+      def fixSamps(df, name):
+          if df['Sample'].str.contains('fig\|6666666').any():
+               df['Sample'] = df['Sample'].str.replace('fig\|6666666', name)
+          elif df['Sample'].str.contains('fig\|384').any():
+              df['Sample'] = df['Sample'].str.replace('fig\|384', name)
+          df = df.set_index('Sample')
+          return df
+
+      HM302_AMp07_rhiz = fixSamps(HM302_AMp07_rhiz, 'AMp07')
+
+      HM302_AMp07_med = average_counts(HM302_AMp07_med, sampleCol='Sample', treatmentCol='Treatment')
+      HM302_AMp07_rhiz = average_counts(HM302_AMp07_rhiz, sampleCol='Sample', treatmentCol='Treatment')
+
+      HM302_AMp07 = pd.concat([HM302_AMp07_med, HM302_AMp07_rhiz]).add_prefix('HM302_AMp07_')
+
+      hm302_amp07_final = pd.concat([HM302_AMp07, amp07], axis=1)
+
+      amp07_cd_de = pd.read_csv('Rhizo_Mono_DEseq/DESeqgroupName_AMp07_Cd.treated_vs_AMp07_Control.csv', index_col=0,
+                             usecols=[0,2,6]).add_prefix('AMp07_Cd-treated_')
+      amp07_hg_de = pd.read_csv('Rhizo_Mono_DEseq/DESeqgroupName_AMp07_Hg.treated_vs_AMp07_Control.csv', index_col=0,
+                             usecols=[0,2,6]).add_prefix('AMp07_Hg-treated_')
+
+      hm302_amp07_med_de = pd.read_csv('HM302_AMp07/HOMRNA_DEA_results_files_med/DESeqStrainXStrainXTrt_HM302_AMp07_Hg_vs_HM302_AMp07_Control.csv', index_col=0,
+                             usecols=[0,2,6]).add_prefix('HM302_AMp07_Hg-treated_')
+      hm302_amp07_rhiz_de = pd.read_csv('HM302_AMp07/HOMRNA_DEA_results_files_rhiz/DESeqStrainXStrainXTrt_HM302_AMp07_Hg_vs_HM302_AMp07_Control.csv', index_col=0,
+                             usecols=[0,2,6]).add_prefix('HM302_AMp07_Hg-treated_')
+
+      def fixSamps(df, name):
+          df = df.reset_index()
+          if df['Symbol'].str.contains('fig\|6666666').any():
+              df['Symbol'] = df['Symbol'].str.replace('fig\|6666666', name)
+          elif df['Symbol'].str.contains('fig\|384').any():
+              df['Symbol'] = df['Symbol'].str.replace('fig\|384', name)
+          df = df.set_index('Symbol')
+          return df
+
+      hm302_amp07_rhiz_de = fixSamps(hm302_amp07_rhiz_de, 'AMp07')
+
+      hm302_amp07_de_final =  pd.concat([hm302_amp07_med_de, hm302_amp07_rhiz_de])
+
+      hm302_amp07_FINAL = pd.concat([hm302_amp07_de_final, amp07_cd_de, amp07_hg_de, hm302_amp07_final], axis=1)
+
+
+## Perform GO Enrichment on Differentially Expressed Genes ##
+- Use the following file as input for GO enrichment ["Dual_Full_Compiled_Final_bact_format.xlsx"](https://www.dropbox.com/scl/fi/h7bojdlyzxhzo1trtos6v/Dual_Full_Compiled_Final_bact_format.xlsx?dl=0&rlkey=su32e4waopl1ud27lgob2k2dx)
+- You must run GO enrichments for biological process, molecular function, and cellular component separately
+- NOTE: you must have internet connection to use this function!
+- Activate the py_39 conda environment by running the following command in terminal (Mac/Linux) or Anaconda prompt (Windows):
+
+      conda activate py_39
+
+- Make sure the BioinformaticsLibrary.py file is in your working directory
+- Run spyder by running the `spyder` command
+- Open a new document file within spyder
+- Make sure you are in the correct working directory
+	- The BioinformaticsLibrary.py file should be in your working directory
+	- The ["Dual_Full_Compiled_Final_bact_format.xlsx"](https://www.dropbox.com/scl/fi/h7bojdlyzxhzo1trtos6v/Dual_Full_Compiled_Final_bact_format.xlsx?dl=0&rlkey=su32e4waopl1ud27lgob2k2dx) file should also be in your working directory
+- Use the following template for running GO enrichments on rhizobia data:
+
+      import BioinformaticsLibrary as BL
+
+      BL.gProfiler_Rhizobia_DEGs(DEA_file='Dual_Full_Compiled_Final_bact_format.xlsx', 
+                                 org_name='AMp07_491873', xlsx_sheet_name='HM302_AMp07_final', 
+                                 custom_GMT='AMp08_BP.gmt', lfc_flag ='log2FoldChange', 
+                                 padj_flag='padj', L2FC_threshold=1, 
+                                 adjP_threshold=0.05, gProf_adjP_threshold=0.05, 
+                                 threshold_method='g_SCS', verbose=True)
+
+- This will output 2 files:
+	- Genes_for_Full_gProfiler.csv : this is a list of all the genes that were identified as differentially expressed in your dataset based on the thresholds you specified
+	- <name of file>_Full_gProfiler: this is the GO enrichment file that you are primarily interested in generating
+	- NOTE: every time you run this function from the same "DEA_file" it will create new files in your working directory with the exact same name. This means that you must rename these files if you don't want them to be over written
+		- For example, in this case we will run the same DEA_file with the biological process enrichment file followed by the molecular function file
+		- I recommend adding "_BP" or "_MF" to the end of the output file so they are not overwritten (ex: "Dual_Full_Compiled_Final_bact_format_Full_gProfiler**_BP**.csv"
+	
+- After renaming the file, re-run the enrichment for molecular function
+
+      import BioinformaticsLibrary as BL
+
+      BL.gProfiler_Rhizobia_DEGs(DEA_file='Dual_Full_Compiled_Final_bact_format.xlsx', 
+                                 org_name='AMp07_491873', xlsx_sheet_name='HM302_AMp07_final', 
+                                 custom_GMT='AMp08_MF.gmt', lfc_flag ='log2FoldChange', 
+                                 padj_flag='padj', L2FC_threshold=1, 
+                                 adjP_threshold=0.05, gProf_adjP_threshold=0.05, 
+                                 threshold_method='g_SCS', verbose=True)
+
+- Add "_MF" to the end of the output files
+- Open the 2 enrichment files in excel and simply concatenate them so that all of the data is in one file.
+- I will name this file "Dual_Full_Compiled_Final_bact_format.xlsx"
+
+## Make GO Enrichment Dotplots ##
+- Activate the py_39 conda environment
+
+      conda activate py_39
+
+- Make sure the BioinformaticsLibrary.py file is in your working directory
+- Run spyder by running the `spyder` command
+- Open a new document file within spyder
+- Make sure you are in the correct working directory
+	- The BioinformaticsLibrary.py file should be in your working directory
+	- The Dual_Full_Compiled_Final_bact_format_Full_gProfiler_FULL.csv file should also be in your working directory
+- Copy, paste, and run the following script on this file: ["Dual_Full_Compiled_Final_bact_format_Full_gProfiler_FULL.csv"](https://www.dropbox.com/s/0f3nk384ecbeqec/Dual_Full_Compiled_Final_bact_format_Full_gProfiler_FULL.csv?dl=0) file
+
+      import BioinformaticsLibrary as BL
+
+      BL.goEnrich_DotPlot(adj_Pthresh=0.05, for_REVIGO=False, full_gProfiler='Dual_Full_Compiled_Final_bact_format_Full_gProfiler_FULL.csv',
+                           output_type='.pdf',
+                           plot_width=8, plot_height=10,
+                           subset_column_list=None,
+                           sort_list=None,
+                           dot_min_size=30,
+                           dot_max_size=300)
